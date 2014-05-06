@@ -3,9 +3,18 @@ tralics_driver
 
 Driver for Tralics: Convert LaTeX math snippets to MathML elements
 
-
 *Note*: Tralics is a LaTeX to XML Translator from http://www-sop.inria.fr/marelle/tralics/
-I had nothing to do with that. This is only a driver.
+This is only a driver.
+
+Requirements
+-------------
+
+  * Python 2.6 or greater
+  * Pexpect package
+  * Tralics installation
+  
+What does it do?
+----------------
 
 The problem this project attempts to solve is when you have a bunch of LaTeX math 
 snippets (inline or block math) and you want to convert them to MathML. It all started 
@@ -24,9 +33,10 @@ For example, once this project is running, you'll be able to write code like thi
     
     do_something(math_elements)
     
-I'm going to make some assumptions, like:
+Assumptions
+------------
 
-  * You have installed Tralics (obviously)
+  * You have installed Tralics
   * If you have custom ``newcommand``s defined, you put them in a file ``newcommands.tex`` and place that file in the Tralics ``conf`` directory.
   * You want to cache your string conversions and you're willing to pickle them on disk (you could use a database, but you'll need to make the modifications for that yourself). I use MongoDB for my own project but I didn't want to add that dependency to this project. File caching works fine.
 
