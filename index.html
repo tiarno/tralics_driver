@@ -33,7 +33,7 @@
         The driver is in testing mode now. Finding problems with Unicode strings.
       </p>
 
-{% highlight python linenos %}
+      <pre><code>
       t = TralicsDriver('/usr/local')
       for mathstring in get_mathstring():
           t.convert(mathstring)
@@ -41,7 +41,7 @@
               print etree.tostring(elem)
               print
       t.stop()
-{% endhighlight %}
+</code></pre>
 
       <h3>
         Will be updating soon.
