@@ -6,12 +6,15 @@ Driver for Tralics: Convert LaTeX math snippets to MathML elements
 *Note*: Tralics is a LaTeX to XML Translator from http://www-sop.inria.fr/marelle/tralics/
 This is only a driver.
 
+See the github page for this driver at http://tiarno.github.io/tralics_driver/
+
 Requirements
 -------------
 
   * Python 2.6 or greater
   * Pexpect package
   * Tralics installation
+  * lxml (you could get by with the standard ElementTree but lxml makes things easier)
   
 What does it do?
 ----------------
@@ -23,15 +26,18 @@ That means I need my math to be in MathML.
 
 For example, once this project is running, you'll be able to write code like this::
 
-    math_elements = list()
+    t = TralicsDriver('/usr/local')
+      for fname, mathstring in get_mathstring(): # you write the get_mathstring function
+          elemstring = t.convert(fname, mathstring)
+          if elem is not None:
+              print etree.tostring(elem) # or do what you like with the MathML strings
+              print '-'*30
+      if t.errors:
+        print 'ERRORS:'
+        print t.errors # or do what you like with any errors encountered
+      t.stop()
     
-    driver = TralicsDriver()
-    for s in latex_strings:
-        formula = driver.getmath(s)
-        math_elements.append(clean_formula(formula))
-    driver.stop()
     
-    do_something(math_elements)
     
 Assumptions
 ------------
