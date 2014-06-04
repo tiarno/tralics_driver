@@ -26,28 +26,59 @@
   <div id="main_content_wrap" class="outer">
     <section id="main_content" class="inner">
       <h3>
-        Currently
+        Overview
       </h3>
 
-      <p>
-        The driver is in testing mode now. Finding problems with Unicode strings.
-      </p>
-
+      <p>Basic usage is as follows:</p>
       <pre><code>
       t = TralicsDriver('/usr/local')
-      for mathstring in get_mathstring():
-          t.convert(mathstring)
+      for fname, mathstring in get_mathstring():
+          elemstring = t.convert(fname, mathstring)
           if elem is not None:
               print etree.tostring(elem)
-              print
+              print '-'*30
+      if t.errors:
+        print 'ERRORS:'
+        print t.errors
       t.stop()
 </code></pre>
-
-      <h3>
-        Will be updating soon.
-      </h3>
-
     </section>
+    <section id="project_layout" class="inner">
+      <h3>Project Layout</h3>
+      <p>The code is structured as follows:</p>
+      <ul>
+        <li><code>__init__.py</code> Contains helper functions
+          <code>unescape</code> and <code>escape</code> to handle html/xml markup changes, and a
+          string template to return the contents of an error.</li>
+        <li><code>driver.py</code> Contains only the driver class, <code>TralicsDriver</code>. The
+          class methods are as follows:
+          <ul>
+            <li><code>__init__(tralics_dir, options)</code>. Sets up locations for the tralics
+              binary, the customized 'newcommands' file if it exists, and the cache file if it exists.
+            </li>
+            <li><code>start</code> Spawns a <code>pexpect</code> process and reads in the
+              customized 'newcommands' file if it exists.</li>
+            <li><code>stop</code> Closes the process and writes the cache to disk.</li>
+            <li><code>convert(fname, mathstring)</code> returns the MathML string of the
+              LaTeX <code>mathstring</code>
+              that was found in file name <code>fname</code>. If possible,
+              get the converted MathML string from the cache; otherwise, pass the string to the Tralics
+              process. Prints a dot (.) for strings found in the cache, or a plus ('+') if the
+              string was processed by Tralics.</li>
+            <li><code>getmath(expr)</code> Passes the LaTeX string <code>expr</code> to the
+              Tralics process and returns the MathML string or an element string containing
+              the filename, error message, and LaTeX string that caused the error.</li>
+            <li><code>clean_formula(expr, result)</code> Modifies the element string to conform
+              to the current MathML spec (changes attributes) or returns an element string containing
+              the filename, error message, and LaTeX string that caused the error.</li>
+            <li><code>handle_error(data)</code> Records the error data in the instances list of
+              errors and returns an element string containing
+              the filename, error message, and LaTeX string that caused the error.</li>
+        </li>
+        <li><code>runner.py</code> Contains an example of how to use the driver on a
+          tree of HTML files.</li>
+    </ul>
+  </section>
   </div>
 
   <!-- FOOTER  -->
