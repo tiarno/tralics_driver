@@ -1,80 +1,109 @@
-from string import Template
-from xml.etree import ElementTree as etree
+from lxml import etree
+import tralics
 import os
+import sys
 import pexpect
 try:
-   import cPickle as pickle
+    import cPickle as pickle
 except:
-   import pickle
-
-XMLNS = 'http://www.w3.org/1998/Math/MathML'
-XMLNS_qname = '{%s}' % XMLNS
-etree.register_namespace('', XMLNS)
-
-bad_elem = Template('''<formula type="display">
-  <math xmlns="%s">
-    <mtext mathbackground="maroon"
-           mathcolor="white">Problem: $error_text (rc = $return_code)</mtext>
-  </math>
-</formula>''' % XMLNS)
+    import pickle
 
 class TralicsDriver(object):
-    def __init__(self, tralics_dir):
+    def __init__(self, tralics_dir, options='-etex -noentnames -utf8 -oe8'):
         binary = os.path.join(tralics_dir, 'bin', 'tralics')
         cfgdir = os.path.join(tralics_dir, 'conf', 'tralics')
         self.newcommands = os.path.join(cfgdir, 'newcommands')
-        self.tralics_cmd = '%s -interactivemath -noentnames -confdir %s' % (binary, cfgdir)
+
+        self.tralics_cmd = '%s -interactivemath %s -confdir %s' % (binary, options, cfgdir)
 
         self.pickle_cache = os.path.join(cfgdir, 'cache.pkl')
         if os.path.isfile(self.pickle_cache):
             with open(self.pickle_cache) as f:
                 self.cache = pickle.load(f)
+            print 'cache %s keys' % len(self.cache)
         else:
             self.cache = dict()
         self.started = False
+        self.errors = list()
 
     def start(self):
-        self.child = pexpect.spawn(self.tralics_cmd)
-        self.child.expect('> ')
-        self.child.send('\\usepackage{amsmath}\n')
-        self.child.expect('> ')
-        if os.path.isfile('%s.tex' % self.newcommands):
-            self.child.send('\\input{%s}\n' % self.newcommands)
-            self.child.expect('> ')
+        self.child = pexpect.spawnu(self.tralics_cmd, maxread=4096, timeout=5)
+        self.child.expect(u'> ')
+        self.child.send(u'\\usepackage{amsmath}\n')
+        self.child.expect(u'> ')
+        if os.path.isfile(u'%s.tex' % self.newcommands):
+            self.child.send(u'\\input{%s}\n' % self.newcommands)
+            self.child.expect(u'> ')
         self.started = True
 
-    def convert(self, mathstring):
+    def stop(self):
+        if self.started:
+            self.child.close()
+            with open(self.pickle_cache, 'wb') as f:
+                print 'writing cache %s keys' % len(self.cache)
+                pickle.dump(self.cache, f)
+
+    def convert(self, fname, mathstring):
         '''Driver entry point'''
-        s = self.cache.get(mathstring)
-        if not s:
+        self.fname = fname
+        mathstring = tralics.unescape(mathstring)
+        elem = self.cache.get(mathstring)
+        if elem:
+            sys.stdout.write('.');sys.stdout.flush()
+        else:
             if not self.started:
                 self.start()
-            s = self.getmath(mathstring)
-        else:
-            print 'GOT CACHED'
-        return self.clean_formula(s)
+            sys.stdout.write('+');sys.stdout.flush()
+            elem = self.getmath(mathstring)
+
+        return elem
 
     def getmath(self, expr):
-        self.child.sendline(expr)
-        rc = self.child.expect(['<formula.*formula>', pexpect.EOF, pexpect.TIMEOUT])
-        if rc:
-            s = bad_elem.substitute({'error_text': expr, 'return_code': rc})
+        exception_text = ''
+        if expr.startswith('\\begin') or expr.startswith('\\['):
+            self.child.sendline('%s\n' % expr)
         else:
-            text_before = self.child.before.strip()
-            result = self.child.after.strip()
+            self.child.sendline(expr)
+        try:
+            rc = self.child.expect([unicode('<formula.*formula>'), pexpect.EOF])
+        except (pexpect.TIMEOUT, UnicodeDecodeError):
+            exception_text = 'timeout exceeded or unicode problem'
+            rc = 4
+        if rc:
+            if not exception_text:
+                exception_text = 'tralics error'
+            return self.handle_error({
+                'message': exception_text,
+                'filename': self.fname,
+                'latex': expr,
+                'rc': rc})
+
+        else:
+            text_before, result = (self.child.before.strip(), self.child.after.strip())
             error_found = text_before.find('Error')
 
             if error_found != -1:
-                error_text = text_before[error_found:].replace('\n','')
-                s = bad_elem.substitute({'error_text': error_text, 'return_code': '3'})
+                exception_text = text_before[error_found:].replace('\n', '')
+                return self.handle_error({
+                    'message': exception_text,
+                    'filename': self.fname,
+                    'latex': expr,
+                    'rc': 3})
             else:
-                self.cache[expr] = result
-                s = result
-        return s
+                return self.clean_formula(expr, result)
 
-    def clean_formula(self, formula_string):
-        formula = etree.fromstring(formula_string)
-        elem = formula.find('%smath' % XMLNS_qname)
+    def clean_formula(self, expr, result):
+        try:
+            formula = etree.fromstring(result)
+        except etree.XMLSyntaxError as e:
+            exception_text = str(e)
+            return self.handle_error({
+                'message': exception_text,
+                'filename': self.fname,
+                'latex': expr,
+                'rc': 5})
+
+        elem = formula.find('%smath' % tralics.XMLNS_qname)
         if formula.attrib.get('type') == 'display':
             elem.attrib['display'] = 'block'
         else:
@@ -83,29 +112,25 @@ class TralicsDriver(object):
         if elem.attrib.get('mode'):
             del elem.attrib['mode']
 
-        return elem
+        s = etree.tostring(elem)
+        if not self.cache.get(expr):
+            self.cache[expr] = s
 
-    def stop(self):
-        if self.started:
-            self.child.close()
-            with open(self.pickle_cache, 'wb') as f:
-                pickle.dump(self.cache, f)
+        return s
 
-def main():
-    test_math = [
-    '$x+y=\sqrt{z}$', '$\\mathrm{x} = 1.0$', '$\\mathsf{h}_0 = 0$',
-    '$x+y=\sqrt{z}$',
-    '\\begin{align*}x &= y\\\\ z &= w\end{align*}',
-    '$\\mytest + y$',
-    '$\sum_x^y z = 0$'
-    ]
+    def handle_error(self, data):
+        sys.stdout.write('x');sys.stdout.flush()
+        self.child.close()
+        self.start()
 
-    t = TralicsDriver('/usr/local')
-    for mathstring in test_math:
-        elem = t.convert(mathstring)
-        print etree.tostring(elem)
-        print
-    t.stop()
+        if not data['message']:
+            data['message'] = 'message placeholder'
+        if not data['latex']:
+            data['latex'] = 'latex placeholder'
 
-if __name__ == '__main__':
-    main()
+        self.errors.append(data)
+        return tralics.bad_elem.substitute({
+                    'error_text': tralics.escape(data['message']),
+                    'expr': tralics.escape(data['latex']),
+                    'return_code': data['rc']})
+
