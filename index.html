@@ -28,8 +28,28 @@
       <h3>
         Overview
       </h3>
+      <p>Driver for Tralics: Convert LaTeX math snippets to MathML elements</p>
+      <p>Note: Tralics is a LaTeX to XML Translator from http://www-sop.inria.fr/marelle/tralics/ <br/>
+        This is only a driver.
+      </p>
 
-      <p>Basic usage is as follows:</p>
+      <h4>Requirements</h4>
+      <p>
+        <ul>
+          <li>Python 2.6 or greater</li>
+          <li>Pexpect package</li>
+          <li>Tralics installation</li>
+          <li>lxml package</li>
+        </ul>
+      <h4>What does it do?</h4>
+      <p>
+        The problem this project attempts to solve is when you have LaTeX math snippets
+        (inline or block math) and you want to convert them to MathML.
+      </p>
+      <p>For example, you can write code like the following.
+        You write the function <tt>get_mathstring()</tt> yourself.
+        See the file <tt>runner.py</tt> for details.
+      </p>
       <pre><code>
       from tralics_driver import driver
 
@@ -45,6 +65,15 @@
       t.stop()
 </code></pre>
     </section>
+    <h4>Assumptions</h4>
+    <p>
+      <ul>
+        <li>You have installed Tralics</li>
+        <li>If you have custom <tt>newcommand</tt>s, you put them in a file called
+          <tt>newcommands.tex</tt> and place the file in the Tralics <tt>conf</tt> directory</li>
+        <li>You want to cache your conversions on disk</li>
+      </ul>
+    </p>
     <section id="project_layout" class="inner">
       <h3>Project Layout</h3>
       <p>The code is structured as follows:</p>
@@ -52,27 +81,35 @@
         <li><code>__init__.py</code> Contains helper functions
           <code>unescape</code> and <code>escape</code> to handle html/xml markup changes, and a
           string template to return the contents of an error.</li>
+
         <li><code>driver.py</code> Contains only the driver class, <code>TralicsDriver</code>. The
           class methods are as follows:
+
           <ul>
             <li><code>__init__(tralics_dir, options)</code>. Sets up locations for the tralics
               binary, the customized 'newcommands' file if it exists, and the cache file if it exists.
             </li>
+
             <li><code>start</code> Spawns a <code>pexpect</code> process and reads in the
               customized 'newcommands' file if it exists.</li>
+
             <li><code>stop</code> Closes the process and writes the cache to disk.</li>
+
             <li><code>convert(fname, mathstring)</code> returns the MathML string of the
               LaTeX <code>mathstring</code>
               that was found in file name <code>fname</code>. If possible,
               get the converted MathML string from the cache; otherwise, pass the string to the Tralics
               process. Prints a dot (.) for strings found in the cache, or a plus ('+') if the
               string was processed by Tralics.</li>
+
             <li><code>getmath(expr)</code> Passes the LaTeX string <code>expr</code> to the
               Tralics process and returns the MathML string or an element string containing
               the filename, error message, and LaTeX string that caused the error.</li>
+
             <li><code>clean_formula(expr, result)</code> Modifies the element string to conform
               to the current MathML spec (changes attributes) or returns an element string containing
               the filename, error message, and LaTeX string that caused the error.</li>
+
             <li><code>handle_error(data)</code> Records the error data in the instances list of
               errors and returns an element string containing
               the filename, error message, and LaTeX string that caused the error.</li>
