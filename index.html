@@ -31,12 +31,14 @@
 
       <p>Basic usage is as follows:</p>
       <pre><code>
-      t = TralicsDriver('/usr/local')
+      from tralics_driver import driver
+
+      math_elems = list()
+      t = driver.TralicsDriver('/usr/local')
       for fname, mathstring in get_mathstring():
           elemstring = t.convert(fname, mathstring)
-          if elem is not None:
-              print etree.tostring(elem)
-              print '-'*30
+          math_elems.append(elemstring)
+
       if t.errors:
         print 'ERRORS:'
         print t.errors
@@ -79,6 +81,62 @@
         <li><code>runner.py</code> Contains an example of how to use the driver on a
           tree of HTML files.</li>
     </ul>
+  </section>
+  <section id="examples" class="inner">
+    <h3>Example</h3>
+    <p>This example parses each HTML file from a target directory.
+      It assumes that some images (those with <tt>class="math"></tt>) contain <tt>alt</tt>
+      text containing the LaTeX markup used to create the image.</p>
+    <p>For each image, it
+      <ul>
+        <li> passes the LaTeX markup string to the Tralics driver to get the MathML version</li>
+        <li> creates an element from that MathML string</li>
+        <li> and replaces the original image element with the MathML element</li>
+        <li> writes the new tree (a copy of the original) to a new directory</li>
+      </ul>
+    </p>
+    <p>
+      So at the beginning there was one HTML tree of files that uses images for math.
+      At the end, the original directory is untouched, and there is an identical HTML
+      directory that contains MathML elements instead of the original images.
+    </p>
+
+    <code>
+      from tralics_driver import driver
+      target_dir = '/some/dir/with/html_files'
+      mathml_root = '/another/place/to/write/new/html_files'
+      d = {
+        'type': 'text/javascript',
+        'src':'http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=MML_HTMLorMML'
+        }
+      mathjax_elem = etree.Element('script', attrib=d)
+
+      t = driver.TralicsDriver()
+      for fname in [x for x in os.listdir(target_dir) if x.endswith('.html')]:
+        parser = etree.HTMLParser()
+        tree = etree.parse(os.path.join(target_dir, fname), parser)
+        head = tree.find('head')
+        head.append(mathjax_elem)
+
+        for image in tree.xpath('//img[@class="math"]'):
+            mtext = image.get('alt')
+            if mtext:
+              elemstring = t.convert(fname, mtext)
+              try:
+                  math_elem = etree.fromstring(elemstring)
+              except etree.XMLSyntaxError as e:
+                  print e
+              else:
+                image.getparent().replace(image, math_elem)
+            else:
+              print 'No alt text %s:%s' % (fname, image.get('src'))
+
+        with open(os.path.join(mathml_root, fname), 'wb') as f:
+            f.write('<!DOCTYPE html>\n%s' % etree.tostring(tree.getroot(),
+                                                           pretty_print=True,
+                                                           encoding='UTF-8',
+                                                           method='html'))
+    </code>
   </section>
   </div>
 
