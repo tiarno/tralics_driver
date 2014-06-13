@@ -31,11 +31,11 @@ You write the function ``get_latex()`` yourself. See the file ``runner.py`` for 
     from tralics_driver import driver
     math_elements = list()
 
-    driver = driver.TralicsDriver()
+    d = driver.TralicsDriver()
     for s in get_latex():
-        mathml_elem = driver.convert(s)
+        mathml_elem = d.convert(s)
         math_elements.append(mathml_elem)
-    driver.stop()
+    d.stop()
 
     do_something(math_elements)
 
