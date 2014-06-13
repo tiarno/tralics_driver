@@ -6,12 +6,16 @@ Driver for Tralics: Convert LaTeX math snippets to MathML elements
 *Note*: Tralics is a LaTeX to XML Translator from http://www-sop.inria.fr/marelle/tralics/
 This is only a driver.
 
+See the github page for this driver at http://tiarno.github.io/tralics_driver/
+
 Requirements
 -------------
 
   * Python 2.6 or greater
   * Pexpect package
   * Tralics installation
+  * lxml (you could get by with the standard ElementTree but lxml makes things easier)
+
 
 What does it do?
 ----------------
