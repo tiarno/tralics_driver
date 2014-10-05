@@ -1,5 +1,6 @@
 tralics_driver
 ==============
+[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/tiarno/tralics_driver?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Driver for Tralics: Convert LaTeX math snippets to MathML elements
 
